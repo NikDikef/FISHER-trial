@@ -1,0 +1,902 @@
+---
+title: ""
+format:
+  html:
+    toc: true
+    toc-title: "Contents"
+    number-sections: true
+  docx:
+    reference-doc: template.docx
+    toc: true
+    number-sections: true
+    toc-title: "Contents"
+editor: source
+echo: false
+warning: false
+message: false
+fig-align: center
+fig-dpi: 300
+---
+
+```{r}
+#| label: Setup
+#| include: false
+
+library(readxl)
+library(tidyverse)
+library(gtsummary)
+library(marginaleffects)
+library(flextable)
+library(patchwork)
+library(geepack)
+
+df <- read_excel("Data/df1.xlsx")
+
+set_flextable_defaults(font.family = "Times New Roman",
+                       font.size = 12,
+                       theme_fun = theme_box)
+
+tab_tbl <- function(tbl){
+   as_flex_table(tbl) |> 
+   autofit() |> 
+   fit_to_width(7.5)
+}
+
+tab_ME <- function(ME){
+   flextable(ME) |> 
+   autofit() |> 
+   fit_to_width(7.5)
+}
+```
+
+# Statistical analysis (этот раздел надо копировать полностью в статью)
+
+## Sample size.
+A power calculation was carried out to determine the sample size. The non-inferior margin mean difference in the VAS score between compression 1 level and 2 level was estimated to be 1 cm with a standard deviation of 2 cm (H0: mean of 1 level - mean of 2 level ≥ 1). It was required to include 100 patients (50 per group) for power = 80%, alpha = 5%. [Chow S, Shao J, Wang H. 2008. Sample Size Calculations in Clinical Research. 2nd Ed. Chapman & Hall/CRC Biostatistics Series]
+
+## Data analysis
+Descriptive statistics, including means (standard deviation) for continuous variables and counts (percents) for categorical variables, were summarized data. Differences in proportions between groups were calculated using a Pearson's chi-squared test of homogeneity, differences in means were calculated using a Welch's t-test. For pairwise compares by time we used Cochran's Q test and paired Welch's t-test. 
+
+\
+Primary end point was estimated as mean difference (MD) using linear regression with adjusted interaction between compression and age and sex. Wald-type 95% confidence intervals (CI) were computed using heteroscedasticity-consistent robust standard errors (type HC3 sandwich estimators). Marginal effects are reported as adjusted means with 95% CI, derived using a balanced grid of all unique combinations of categorical covariates while holding numeric covariates at their means. It was tested with to the non-inferiority hypothesis (margin = 1). The null hypothesis was rejected when one-side p-value was lower than 0.05.
+
+\
+Additional analysis. The sum levels of pain by VAS measured between compression levels (fixed effect) within each 14 postoperative day were represented as incidence rate ratio (IRR). The population-averaged generalized estimating equation (GEE) with Poisson log-linear link regression and autoregressive correlation structure was used to сalculate this estimate. Postoperative day was included as an variable specifying the ordering of repeated measurements on the same unit to account for reduction in levels of pain during time. IRR was estimated adjusted for between compression and interaction age and sex as variables that have an impact on outcome. The interaction between compression and time was also included. The delta method was used to calculate the uncertainty of the estimate, which is presented as 95% CI. Also approach estimated VCSS and CIVIQ-20 value.
+
+\
+The subgroup analysis used a linear model from the primary analysis. Results represented as MD, 95% CI. We used analysis of variance (ANOVA) to estimate the heterogeneity of the main fixed effect in subgroups for a linear model where a subgroup variable was included as an interaction. A two-side p-value less then 0.05 was significant. Statistical analysis was performed using the open-source software R version 4.5.0 for Mac OS (The R Foundation, http://www.R-project.org) with the generation of a report via Quarto using the following packages: readxl, tidyverse, gtsummary, marginaleffects, flextable, geepack, ggplot2, patchwork.
+
+# Results
+
+## Descriptive statistics at sample
+
+Table 1. Clinical parameters.
+```{r}
+#| label: Table 1
+
+df |> 
+ select(Age:Burning_0, Power:Vein_length) |> 
+ mutate(LED = as.numeric(LED)) |> 
+ tbl_summary(by = "Compression", 
+             missing = "no", 
+             digits = list(all_continuous() ~ c(1,1),
+                           all_categorical() ~ c(0,0)), 
+             statistic = list(all_continuous() ~ "{mean} ({sd})",
+                              all_categorical() ~ "{n} ({p})"),
+             type = list(all_dichotomous() ~ "categorical",
+                         c(Pulsation_0, Tingling_0, Power, LED) ~ "continuous"
+                         ),
+             label = list(Age ~ "Age, years",
+                          CEAP_class_0 ~ "CEAP class",
+                          Ankle_circumference_0 ~ "Ankle circumference, cm",
+                          Stocking_size ~ "Stocking size",
+                          VCSS_0 ~ "VCSS",
+                          CIVIQ_20_0 ~ "CIVIQ-20",
+                          Aching_pain_0 ~ "Aching pain",
+                          Pulsation_0 ~ "Pulsation",
+                          Shyness_0 ~ "Shyness",
+                          Severity_0 ~ "Severity",
+                          Fatigue_0 ~ "Fatigue",
+                          Edema_0 ~ "Edema",
+                          Seizures_0 ~ "Seizures",
+                          Itching_0 ~ "Itching",
+                          Anxiety_0 ~ "Anxiety",
+                          Tingling_0 ~ "Tingling",
+                          Burning_0 ~ "Burning",
+                          Diameter_SFC ~ "Diameter SFC",
+                          Diameter_LSV ~ "Diameter LSV",
+                          Vein_length ~ "Vein length"
+                          )) |> 
+ add_overall() |> 
+ add_p(test = all_continuous() ~ "t.test",
+       pvalue_fun = label_style_pvalue(digits = 3)) |> 
+ modify_footnote(everything() ~ NA) |> 
+ tab_tbl() |> 
+ add_header_row(values = c("Characteristic", "Overall  \nN = 100", "Compression", ""),
+                colwidths = c(1,1,2,1)) |> 
+ align(j = 2:4, 
+       align = "center", 
+       part = "all") |> 
+ merge_v(j = c(1, 2), 
+         part = "header")
+```
+Presentation of variables: quantitative - mean (SD), qualitative - count (percent).
+
+\
+We enrolled 100 patients. Baseline characteristics did not significantly differ among the randomized compression of 1 level and 2 level groups (Table 1), but mean itching significant less in 1 level (7.8 vs 18.8). Mean age was 49.6 years (SD 15.2), 29% patients were men, and 33% were of CEAP 2 class.
+
+## Primary end point
+
+Table 2. Main result.
+```{r}
+#| label: Model PEP
+
+fit_lm <- df |> 
+ mutate(Aching_pain_0 = Aching_pain_0/10) |> 
+ lm(Pain_14 ~ Compression*(Age + Sex), data = _) 
+
+tab1 <- avg_comparisons(fit_lm, 
+                variables = list(Compression = c("2 level", "1 level")), 
+                newdata = "balanced",
+                vcov = "HC3") |> 
+ hypotheses(equivalence = 1) |> 
+ mutate(`Adjusted MD\n(95% CI)` = paste0(round(estimate, 2), "\n", " (",
+                                    round(conf.low, 2), ", ",
+                                    round(conf.high, 2), ")"),
+         `p-value` = ifelse(p.value.nonsup < 0.001, "<0.001", round(p.value.nonsup,3)),
+         Difference = "1 level - 2 level") |> 
+ select(Difference, `Adjusted MD\n(95% CI)`, `p-value`)
+
+avg_predictions(fit_lm, 
+                by = "Compression", 
+                newdata = "balanced",
+                vcov = "HC3") |> 
+ mutate(`Adjusted means\n(95% CI)` = paste0(round(estimate, 2), "\n", " (",
+                                    round(conf.low, 2), ", ",
+                                    round(conf.high, 2), ")")) |> 
+ select(Compression, `Adjusted means\n(95% CI)`) |> 
+ cbind(tab1) |> 
+ tab_ME() |> 
+ merge_v(j = 3:5) |> 
+ align(j = 2:5, 
+       align = "center", 
+       part = "all")
+```
+p-value for non-inferiority (margin = 1).
+
+\
+The adjusted averages for 1 and 2 levels were 0.86 and 1.08, adjusted mean difference was -0.22 (95% CI -0.80; 0.36) with p-value < 0.001 for non-inferiority (table 2 and figure 1). 1 level of compression is significantly no inferior to 2 level.
+
+\
+Figure 1. Marginal means for levels of compression.
+```{r}
+#| label: Plot of model
+#| fig-width: 6
+#| fig-height: 4
+
+plot_predictions(fit_lm, 
+                 by = "Compression",
+                 newdata = "balanced",
+                 vcov = "HC3",
+                 draw = F) |> 
+ ggplot(aes(x = Compression, y = estimate, ymin = conf.low, ymax = conf.high, 
+            color = Compression)) +
+ geom_pointrange(show.legend = F, size = 1) +
+ theme_bw(base_size = 15) +
+ ggsci::scale_color_lancet() +
+ ggsci::scale_fill_lancet() +
+ labs(y = "VAS value") +
+ coord_cartesian(ylim = c(0, 2)) +
+ scale_y_continuous(breaks = seq(0, 2, 0.5)) +
+ theme(legend.text = element_text(size = 15),
+       legend.title = element_blank(), 
+       panel.grid.minor = element_blank(), 
+       panel.grid.major.x = element_blank(), 
+       legend.background = element_blank())
+```
+VAS - Visual Analogue Scale, point - marginal means, range - 95% confidence interval.
+
+```{r}
+#| label: Model IRR
+#| warning: false
+
+df1 <- df |> 
+ mutate(Aching_pain_0 = round(Aching_pain_0/10,1)) |> 
+ pivot_longer(starts_with("Pain_")) |> 
+ separate(name, sep = "_", into = c("Pain", "Time")) |> 
+ select(-Pain) |> 
+ mutate(Time = as.numeric(Time),
+        Compression = factor(Compression))
+
+fit_pois <- geeglm(value ~ Compression*Time*(Age + Sex), 
+                   id = ID, df1, family = poisson, corstr = "ar1", 
+                   waves = log(Time))
+```
+
+\
+Table 3. Additional result.
+```{r}
+#| label: Results of model
+
+avg_comparisons(fit_pois,
+                variables = list(Compression = c("2 level", "1 level")),
+                comparison = "lnratio", 
+                transform = "exp", 
+                newdata = "balanced") |> 
+  mutate(`IRR\n(95% CI)` = paste0(round(estimate, 2), "\n", " (",
+                                    round(conf.low, 2), ", ",
+                                    round(conf.high, 2), ")"),
+         `p-value` = ifelse(p.value < 0.001, "<0.001", round(p.value,3)),
+         Compression = "1 level/2 level") |> 
+ select(Compression, `IRR\n(95% CI)`, `p-value`) |> 
+ tab_ME() |> 
+ mk_par(part = "body", j = 1, i = 1, 
+        value = as_paragraph("IR", as_sub("1 level"),
+                             "/IR", as_sub("2 level"))) |> 
+ align(j = 2:3, 
+       align = "center", 
+       part = "all")
+```
+IR - incidence rate (for each level of compression), IRR - incidence rate ratio, CI - confidence interval.
+
+\
+The 1 level of compression has an average reduction pain rate/density of 14% less during 14 postoperative days, but the result is not statistically significant (table 3 and figure 2).
+
+\
+Figure 2. Conditional average value VAS between groups by postoperative day.
+```{r}
+#| label: Plot of model by time
+#| fig-width: 6
+#| fig-height: 5
+
+plot_predictions(fit_pois, 
+                 condition = c("Time", "Compression"),
+                 newdata = "balanced",
+                 draw = F) |> 
+ ggplot(aes(x = Time, y = estimate, ymin = conf.low, ymax = conf.high, 
+            fill = Compression)) +
+ geom_line(aes(color = Compression), linewidth = 1) +
+ geom_ribbon(alpha = 0.15, show.legend = F) +
+ theme_bw(base_size = 15) +
+ ggsci::scale_color_lancet() +
+ ggsci::scale_fill_lancet() +
+ labs(x = "POD", y = "VAS value") +
+ scale_x_continuous(breaks = seq(1, 14, 2)) +
+ scale_y_continuous(breaks = seq(0, 5, 1)) +
+ coord_cartesian(xlim = c(1, 14), ylim = c(0, 5)) +
+ theme(legend.position = c(0.85, 0.9),
+       legend.text = element_text(size = 15),
+       legend.title = element_blank(),
+       legend.background = element_blank())
+```
+POD - postoperative day, VAS - Visual Analogue Scale. Lines - average values for groups, ribbon area - 95% confidence interval.
+
+\
+Figure 2.5.1. Conditional average VCSS value between groups by postoperative day.
+```{r}
+#| label: Plot of VCSS model by time
+#| fig-width: 6
+#| fig-height: 5
+
+df1_VCSS <- df |> 
+ mutate(Aching_pain_0 = round(Aching_pain_0/10,1)) |> 
+ pivot_longer(starts_with("VCSS_"), names_to = "VCSS_time", values_to = "VCSS") |> 
+ separate(VCSS_time, sep = "_", into = c("VCSS_time", "Time")) |> 
+ select(-VCSS_time) |> 
+ mutate(Time = as.numeric(Time),
+        Compression = factor(Compression))
+
+fit_pois_VCSS <- geeglm(VCSS ~ Compression*Time*(Age + Sex), 
+                   id = ID, df1_VCSS, family = poisson, corstr = "ar1", 
+                   waves = log(Time))
+
+plot_predictions(fit_pois_VCSS, 
+                 by = c("Time", "Compression"),
+                 newdata = "balanced",
+                 draw = F) |> 
+ ggplot(aes(x = Time, y = estimate, ymin = conf.low, ymax = conf.high, 
+            fill = Compression)) +
+ geom_line(aes(color = Compression), linewidth = 1) +
+ geom_ribbon(alpha = 0.15, show.legend = F) +
+ theme_bw(base_size = 15) +
+ ggsci::scale_color_lancet() +
+ ggsci::scale_fill_lancet() +
+ labs(x = "POD", y = "VCSS value") +
+ scale_x_continuous(breaks = seq(0, 2, 1)) +
+ scale_y_continuous(breaks = seq(0, 8, 2)) +
+ coord_cartesian(ylim = c(0, 8)) +
+ theme(legend.position = c(0.85, 0.9),
+       legend.text = element_text(size = 15),
+       panel.grid.minor.x = element_blank(),
+       legend.title = element_blank(),
+       legend.background = element_blank())
+```
+POD - postoperative day, VCSS - Venous Clinical Severity Score. Lines - average values for groups, ribbon area - 95% confidence interval.
+
+\
+Table 3.5.1. Additional result fo VCSS.
+```{r}
+#| label: Results of model VCSS
+
+avg_comparisons(fit_pois_VCSS,
+                variables = list(Compression = c("2 level", "1 level")),
+                comparison = "lnratio", 
+                transform = "exp", 
+                newdata = "balanced") |> 
+  mutate(`IRR\n(95% CI)` = paste0(round(estimate, 2), "\n", " (",
+                                    round(conf.low, 2), ", ",
+                                    round(conf.high, 2), ")"),
+         `p-value` = ifelse(p.value < 0.001, "<0.001", round(p.value,3)),
+         Compression = "1 level/2 level") |> 
+ select(Compression, `IRR\n(95% CI)`, `p-value`) |> 
+ tab_ME() |> 
+ mk_par(part = "body", j = 1, i = 1, 
+        value = as_paragraph("IR", as_sub("1 level"),
+                             "/IR", as_sub("2 level"))) |> 
+ align(j = 2:3, 
+       align = "center", 
+       part = "all")
+```
+IR - incidence rate (for each level of compression), IRR - incidence rate ratio, CI - confidence interval.
+
+\
+Figure 2.5.2. Conditional average CIVIQ-20 value between groups by postoperative day.
+```{r}
+#| label: Plot of CIVIQ-20 model by time
+#| fig-width: 6
+#| fig-height: 5
+
+df1_CIVIQ_20 <- df |> 
+ mutate(Aching_pain_0 = round(Aching_pain_0/10,1)) |> 
+ pivot_longer(starts_with("CIVIQ_20_"), names_to = "CIVIQ_20_time", values_to = "CIVIQ_20") |> 
+ separate(CIVIQ_20_time, sep = "20_", into = c("CIVIQ_20_time", "Time")) |> 
+ select(-CIVIQ_20_time) |> 
+ mutate(Time = as.numeric(Time),
+        Compression = factor(Compression))
+
+fit_pois_CIVIQ <- geeglm(CIVIQ_20 ~ Compression*Time*(Age + Sex), 
+                        id = ID, df1_CIVIQ_20, family = poisson, corstr = "ar1", 
+                        waves = log(Time))
+
+plot_predictions(fit_pois_CIVIQ, 
+                 by = c("Time", "Compression"),
+                 newdata = "balanced",
+                 draw = F) |> 
+ ggplot(aes(x = Time, y = estimate, ymin = conf.low, ymax = conf.high, 
+            fill = Compression)) +
+ geom_line(aes(color = Compression), linewidth = 1) +
+ geom_ribbon(alpha = 0.15, show.legend = F) +
+ theme_bw(base_size = 15) +
+ ggsci::scale_color_lancet() +
+ ggsci::scale_fill_lancet() +
+ labs(x = "POD", y = "CIVIQ-20 value") +
+ scale_x_continuous(breaks = seq(0, 2, 1)) +
+ scale_y_continuous(breaks = seq(20, 40, 5)) +
+ coord_cartesian(xlim = c(0, 2), ylim = c(20, 40)) +
+ theme(legend.position = c(0.85, 0.9),
+       legend.text = element_text(size = 15),
+       panel.grid.minor.x = element_blank(),
+       legend.title = element_blank(),
+       legend.background = element_blank())
+```
+POD - postoperative day, CIVIQ - ChronIc Venous Insuficiency quality of life Questionnaire. Lines - average values for groups, ribbon area - 95% confidence interval.
+
+\
+Table 3.5.2. Additional result fo CIVIQ-20
+```{r}
+#| label: Results of model CIVIQ-20
+
+avg_comparisons(fit_pois_CIVIQ,
+                variables = list(Compression = c("2 level", "1 level")),
+                comparison = "lnratio", 
+                transform = "exp", 
+                newdata = "balanced") |> 
+  mutate(`IRR\n(95% CI)` = paste0(round(estimate, 2), "\n", " (",
+                                    round(conf.low, 2), ", ",
+                                    round(conf.high, 2), ")"),
+         `p-value` = ifelse(p.value < 0.001, "<0.001", round(p.value,3)),
+         Compression = "1 level/2 level") |> 
+ select(Compression, `IRR\n(95% CI)`, `p-value`) |> 
+ tab_ME() |> 
+ mk_par(part = "body", j = 1, i = 1, 
+        value = as_paragraph("IR", as_sub("1 level"),
+                             "/IR", as_sub("2 level"))) |> 
+ align(j = 2:3, 
+       align = "center", 
+       part = "all")
+```
+IR - incidence rate (for each level of compression), IRR - incidence rate ratio, CI - confidence interval.
+
+\
+The 1 level of compression has an average reduction VCSS value density to 22%, CIVIQ-20 value to 7% during 14 postoperative days, but the results is not statistically significant.
+
+```{r}
+#| label: Compliance
+
+compliance <- df |> 
+ summarise(Compliance = paste0(round(exp(mean(log(Compliance))), 1), " (",
+                               round(exp(sd(log(Compliance))), 1), ")"),
+           .by = Compression) |> 
+ arrange(Compression) |> 
+ add_row(Compression = "All", 
+         Compliance = paste0(round(exp(mean(log(df$Compliance))), 1), " (",
+                               round(exp(sd(log(df$Compliance))), 1), ")")) |> 
+ add_column(p = round(t.test(log(Compliance) ~ Compression, df)$p.val, 3))
+```
+
+\
+Common level of compliance was `r compliance[3,2]`% (as mean(SD)), in group "1 level" - `r compliance[1,2]`% and "2 level" - `r compliance[2,2]`%, difference non-significant (p=`r compliance[1,3]`).
+
+## Vein-specific symptoms
+
+Table 4. Characteristic of vein-specific symptoms by visits.
+```{r}
+#| label: Vein-specific symptoms
+
+tab1 <- df |> 
+  mutate(CEAP_class_0 = factor(CEAP_class_0, levels = c("0", "1", "2", "3", "4"))) |> 
+ select(Compression, CEAP_class_0, Ankle_circumference_0, VCSS_0:Burning_0) |> 
+ tbl_summary(by = "Compression", 
+             missing = "no", 
+             digits = list(all_continuous() ~ c(1,1),
+                           all_categorical() ~ c(0,0)), 
+             statistic = list(all_continuous() ~ "{mean} ({sd})",
+                              all_categorical() ~ "{n} ({p})"),
+             type = list(all_dichotomous() ~ "categorical",
+                         c(Pulsation_0, Tingling_0) ~ "continuous"
+                         ),
+             label = list(CEAP_class_0 ~ "CEAP class",
+                          Ankle_circumference_0 ~ "Ankle circumference, cm",
+                          VCSS_0 ~ "VCSS",
+                          CIVIQ_20_0 ~ "CIVIQ-20",
+                          Aching_pain_0 ~ "Aching pain",
+                          Pulsation_0 ~ "Pulsation",
+                          Shyness_0 ~ "Shyness",
+                          Severity_0 ~ "Severity",
+                          Fatigue_0 ~ "Fatigue",
+                          Edema_0 ~ "Edema",
+                          Seizures_0 ~ "Seizures",
+                          Itching_0 ~ "Itching",
+                          Anxiety_0 ~ "Anxiety",
+                          Tingling_0 ~ "Tingling",
+                          Burning_0 ~ "Burning"
+                          )) |> 
+ modify_footnote(all_stat_cols() ~ NA)
+
+tab2 <- df |> 
+ select(Compression, VCSS_1:Burning_1, Comfort_knitwear_1, Difficulty_putting_1,
+        Ecchymoses) |> 
+ tbl_summary(by = "Compression", 
+             missing = "no", 
+             digits = list(all_continuous() ~ c(1,1),
+                           all_categorical() ~ c(0,0)), 
+             statistic = list(all_continuous() ~ "{mean} ({sd})",
+                              all_categorical() ~ "{n} ({p})"),
+             type = list(all_dichotomous() ~ "categorical",
+                         c(Aching_pain_1, Pulsation_1, Shyness_1, Severity_1, Fatigue_1,
+                           Edema_1, Seizures_1, Itching_1, Anxiety_1, Tingling_1, 
+                           Burning_1) ~ "continuous"
+                         ),
+             label = list(VCSS_1 ~ "VCSS",
+                          CIVIQ_20_1 ~ "CIVIQ-20",
+                          Aching_pain_1 ~ "Aching pain",
+                          Pulsation_1 ~ "Pulsation",
+                          Shyness_1 ~ "Shyness",
+                          Severity_1 ~ "Severity",
+                          Fatigue_1 ~ "Fatigue",
+                          Edema_1 ~ "Edema",
+                          Seizures_1 ~ "Seizures",
+                          Itching_1 ~ "Itching",
+                          Anxiety_1 ~ "Anxiety",
+                          Tingling_1 ~ "Tingling",
+                          Burning_1 ~ "Burning",
+                          Comfort_knitwear_1 ~ "Comfort knitwear, %",
+                          Difficulty_putting_1 ~ "Difficulty putting, %"
+                          )) |> 
+ modify_footnote(all_stat_cols() ~ NA)
+
+tab3 <- df |> 
+ mutate(CEAP_class_2 = factor(CEAP_class_2, levels = c("0", "1", "2", "3", "4"))) |> 
+ select(Compression, CEAP_class_2, Ankle_circumference_2, 
+        VCSS_2:Burning_2, Comfort_knitwear_2, Difficulty_putting_2) |>
+ tbl_summary(by = "Compression", 
+             missing = "no", 
+             digits = list(all_continuous() ~ c(1,1),
+                           all_categorical() ~ c(0,0)), 
+             statistic = list(all_continuous() ~ "{mean} ({sd})",
+                              all_categorical() ~ "{n} ({p})"),
+             type = list(all_dichotomous() ~ "categorical",
+                         c(VCSS_2, Aching_pain_2, Pulsation_2, Shyness_2, Severity_2,
+                           Fatigue_2, Edema_2, Seizures_2, Itching_2, Anxiety_2, Tingling_2,
+                           Burning_2, Comfort_knitwear_2) ~ "continuous"
+                         ),
+             label = list(CEAP_class_2 ~ "CEAP class",
+                          Ankle_circumference_2 ~ "Ankle circumference, cm",
+                          VCSS_2 ~ "VCSS",
+                          CIVIQ_20_2 ~ "CIVIQ-20",
+                          Aching_pain_2 ~ "Aching pain",
+                          Pulsation_2 ~ "Pulsation",
+                          Shyness_2 ~ "Shyness",
+                          Severity_2 ~ "Severity",
+                          Fatigue_2 ~ "Fatigue",
+                          Edema_2 ~ "Edema",
+                          Seizures_2 ~ "Seizures",
+                          Itching_2 ~ "Itching",
+                          Anxiety_2 ~ "Anxiety",
+                          Tingling_2 ~ "Tingling",
+                          Burning_2 ~ "Burning",
+                          Comfort_knitwear_2 ~ "Comfort knitwear, %",
+                          Difficulty_putting_2 ~ "Difficulty putting, %"
+                          )) |> 
+ modify_footnote(all_stat_cols() ~ NA)
+
+tbl_merge(tbls = list(tab1, tab2, tab3), 
+          tab_spanner = c("Baseline\n(preoperative)", 
+                          "Visit 1\n(15 day)", 
+                          "Visit 2\n(30 day)"), 
+          merge_vars = c("row_type", "label")) |> 
+ #show_header_names()
+ modify_header(stat_1_1 ~ "**1 level**", stat_1_2 ~ "**1 level**", 
+               stat_1_3 ~ "**1 level**", stat_2_1 ~ "**2 level**", 
+               stat_2_2 ~ "**2 level**", stat_2_3 ~ "**2 level**") |> 
+ tab_tbl() |> 
+ align(j = 2:6, 
+       align = "center", 
+       part = "all") |> 
+ compose(i = 2, j = c(2,3,6), as_paragraph(as_chunk(""))) |> 
+ compose(i = 3, j = c(2,3), as_paragraph(as_chunk(""))) |> 
+ vline(j = c(3, 5), 
+       border = officer::fp_border(color = "black", width = 1.5))
+```
+Presentation of variables: quantitative - mean (SD), qualitative - count (percent).
+
+\
+The Table 4 shows results of veno-specific symptoms at the follow-up visit (on the 15th and 30th day after surgery). No significant clinical or statistical differences were found between the groups.
+
+## Pairwise compare vein-specific symptoms by times
+
+Table 5. Compare vein-specific symptoms between baseline and 15 postoperative day.
+```{r}
+#| label: Vein-specific symptoms 1
+
+df1 <- df |> 
+  select(ID, Compression, VCSS_0:Burning_0, 
+         VCSS_1:Burning_1) |> 
+  rename(Achingpain_0 = Aching_pain_0,
+         Achingpain_1 = Aching_pain_1,
+         CIVIQ20_0 = CIVIQ_20_0,
+         CIVIQ20_1 = CIVIQ_20_1) |> 
+  pivot_longer(VCSS_0:Burning_1) |> 
+  separate(name, into = c("name", "time"), sep = "_") |> 
+  pivot_wider(id_cols = c(ID, time, Compression), names_from = name, values_from = value)
+
+tab1 <- df1 |> 
+ filter(Compression == "1 level") |> 
+ select(-Compression) |> 
+  tbl_summary(by = "time", 
+              missing = "no", 
+              include = -ID,
+              digits = list(all_continuous() ~ c(1,1)), 
+              statistic = list(all_continuous() ~ "{mean} ({sd})"),
+              type = list(c(Pulsation, Tingling, Achingpain, Fatigue,
+                            Shyness, Itching, Anxiety, Burning) ~ "continuous"
+              ),
+              label = list(CIVIQ20 ~ "CIVIQ-20",
+                           Achingpain ~ "Aching pain",
+                           Pulsation ~ "Pulsation",
+                           Shyness ~ "Shyness",
+                           Severity ~ "Severity",
+                           Fatigue ~ "Fatigue",
+                           Edema ~ "Edema",
+                           Seizures ~ "Seizures",
+                           Itching ~ "Itching",
+                           Anxiety ~ "Anxiety",
+                           Tingling ~ "Tingling",
+                           Burning ~ "Burning"
+              )) |> 
+ add_p(pvalue_fun = label_style_pvalue(digits = 3),
+       test = everything() ~ "paired.t.test", group = ID) |> 
+ modify_footnote(everything() ~ NA) |> 
+ modify_header(stat_1 ~ "Baseline\n(preoperative)", 
+               stat_2 ~ "Visit 1\n(15 day)")
+
+tab2 <- df1 |> 
+ filter(Compression == "2 level") |> 
+ select(-Compression) |> 
+  tbl_summary(by = "time", 
+              missing = "no", 
+              include = -ID,
+              digits = list(all_continuous() ~ c(1,1)), 
+              statistic = list(all_continuous() ~ "{mean} ({sd})"),
+              type = list(c(Pulsation, Tingling, Achingpain, Fatigue, 
+                            Shyness, Itching, Anxiety, Burning) ~ "continuous"
+              ),
+              label = list(CIVIQ20 ~ "CIVIQ-20",
+                           Achingpain ~ "Aching pain",
+                           Pulsation ~ "Pulsation",
+                           Shyness ~ "Shyness",
+                           Severity ~ "Severity",
+                           Fatigue ~ "Fatigue",
+                           Edema ~ "Edema",
+                           Seizures ~ "Seizures",
+                           Itching ~ "Itching",
+                           Anxiety ~ "Anxiety",
+                           Tingling ~ "Tingling",
+                           Burning ~ "Burning"
+              )) |> 
+ add_p(pvalue_fun = label_style_pvalue(digits = 3),
+       test = everything() ~ "paired.t.test", group = ID) |> 
+ modify_footnote(everything() ~ NA) |> 
+ modify_header(stat_1 ~ "Baseline\n(preoperative)", 
+               stat_2 ~ "Visit 1\n(15 day)")
+
+tbl_merge(tbls = list(tab1, tab2), 
+          tab_spanner = c("1 level", 
+                          "2 level")) |> 
+ tab_tbl() |> 
+ fit_to_width(8) |> 
+ align(j = 2:7, 
+       align = "center", 
+       part = "all")
+```
+
+\
+Table 6. Compare vein-specific symptoms between baseline and 30 postoperative day.
+```{r}
+#| label: Vein-specific symptoms 2
+
+df1 <- df |> 
+  select(ID, Compression, VCSS_0:Burning_0, Ankle_circumference_0, 
+         Ankle_circumference_2, CEAP_class_0, CEAP_class_2, VCSS_2:Burning_2) |> 
+  rename(Achingpain_0 = Aching_pain_0,
+         Achingpain_2 = Aching_pain_2,
+         CIVIQ20_0 = CIVIQ_20_0,
+         CIVIQ20_2 = CIVIQ_20_2,
+         Anklecircumference_0 = Ankle_circumference_0,
+         Anklecircumference_2 = Ankle_circumference_2,
+         CEAPclass_0 = CEAP_class_0,
+         CEAPclass_2 = CEAP_class_2) |> 
+  pivot_longer(VCSS_0:Burning_2) |> 
+  separate(name, into = c("name", "time"), sep = "_") |> 
+  pivot_wider(id_cols = c(ID, time, Compression), 
+              names_from = name, 
+              values_from = value) |> 
+  mutate(CEAPclass = factor(CEAPclass, levels = c("0", "1", "2", "3", "4")))
+
+tab1 <- df1 |> 
+ filter(Compression == "1 level") |> 
+ select(ID, time, CEAPclass, Anklecircumference, VCSS:Burning) |> 
+  tbl_summary(by = "time", 
+              missing = "no", 
+              include = -ID,
+              digits = list(all_continuous() ~ c(1,1),
+                           all_categorical() ~ c(0,0)), 
+              statistic = list(all_continuous() ~ "{mean} ({sd})",
+                              all_categorical() ~ "{n} ({p})"),
+              type = list(all_dichotomous() ~ "categorical",
+                          c(VCSS, Achingpain, Pulsation, Shyness, Severity,
+                           Fatigue, Edema, Seizures, Itching, Anxiety, Tingling,
+                           Burning, Anklecircumference) ~ "continuous"
+              ),
+              label = list(CEAPclass ~ "CEAP class",
+                           Anklecircumference ~ "Ankle circumference, cm",
+                           CIVIQ20 ~ "CIVIQ-20",
+                           Achingpain ~ "Aching pain",
+                           Pulsation ~ "Pulsation",
+                           Shyness ~ "Shyness",
+                           Severity ~ "Severity",
+                           Fatigue ~ "Fatigue",
+                           Edema ~ "Edema",
+                           Seizures ~ "Seizures",
+                           Itching ~ "Itching",
+                           Anxiety ~ "Anxiety",
+                           Tingling ~ "Tingling",
+                           Burning ~ "Burning"
+              )) |> 
+ add_p(pvalue_fun = label_style_pvalue(digits = 3),
+       test = list(all_continuous() ~ "paired.t.test",
+                   all_dichotomous() ~ "mcnemar.test"), 
+       group = ID) |> 
+ modify_footnote(everything() ~ NA) |> 
+ modify_header(stat_1 ~ "Baseline\n(preoperative)", 
+               stat_2 ~ "Visit 2\n(30 day)")
+
+tab2 <- df1 |> 
+ filter(Compression == "2 level") |> 
+ #mutate(CEAPclass = factor(CEAPclass, levels = c(0,1,2,3,4))) |> 
+ select(ID, time, CEAPclass, Anklecircumference, VCSS:Burning) |> 
+ tbl_summary(by = "time", 
+              missing = "no", 
+              include = -ID,
+              digits = list(all_continuous() ~ c(1,1),
+                           all_categorical() ~ c(0,0)), 
+              statistic = list(all_continuous() ~ "{mean} ({sd})",
+                              all_categorical() ~ "{n} ({p})"),
+              type = list(all_dichotomous() ~ "categorical",
+                          c(VCSS, Achingpain, Pulsation, Shyness, Severity,
+                           Fatigue, Edema, Seizures, Itching, Anxiety, Tingling,
+                           Burning, Anklecircumference) ~ "continuous"
+              ),
+              label = list(CEAPclass ~ "CEAP class",
+                           Anklecircumference ~ "Ankle circumference, cm",
+                           CIVIQ20 ~ "CIVIQ-20",
+                           Achingpain ~ "Aching pain",
+                           Pulsation ~ "Pulsation",
+                           Shyness ~ "Shyness",
+                           Severity ~ "Severity",
+                           Fatigue ~ "Fatigue",
+                           Edema ~ "Edema",
+                           Seizures ~ "Seizures",
+                           Itching ~ "Itching",
+                           Anxiety ~ "Anxiety",
+                           Tingling ~ "Tingling",
+                           Burning ~ "Burning"
+              )) |> 
+ add_p(pvalue_fun = label_style_pvalue(digits = 3),
+       test = list(all_continuous() ~ "paired.t.test", 
+                   all_dichotomous() ~ "mcnemar.test"), 
+       group = ID) |> 
+ modify_footnote(everything() ~ NA) |> 
+ modify_header(stat_1 ~ "Baseline\n(preoperative)", 
+               stat_2 ~ "Visit 2\n(30 day)")
+
+tbl_merge(tbls = list(tab1, tab2), 
+          tab_spanner = c("1 level", 
+                          "2 level")) |> 
+ tab_tbl() |>
+ fit_to_width(8) |> 
+ align(j = 2:7, 
+       align = "center", 
+       part = "all")
+```
+
+\
+Significant differences were found in all variables for compression level 1 except itching and tingling between baseline and 15 postoperative day (table 5). And it is same in the 2 level, but not for itching. All differences are significant compared to day 30 (table 6).
+
+## Subgroup analysis
+
+Figure 3. Mean difference for primary end point in selected subgroups.
+```{r}
+#| label: Subgroup analysis
+#| warning: false
+#| fig-height: 9
+#| fig-width: 14
+
+model <- function(df){
+lm(Pain_14 ~ Compression, data = df) 
+}
+ 
+df |> 
+ mutate(`Age, years` = factor(cut(Age, 
+                  breaks = c(18, 45, 60, 90), 
+                  labels = c("18-44", "45-59", "60 and older")), 
+                  levels = c("18-44", "45-59", "60 and older")),
+        `Ankle circumference, cm` = factor(cut(Ankle_circumference_0,
+                                    breaks = c(0,25,40),
+                                    labels = c("<25", "≥25")), 
+                                    levels = c("<25", "≥25")),
+        VCSS = factor(cut(VCSS_0,
+                     breaks = c(0, 10, 20),
+                     labels = c("less 10", "10 and more")),
+                     levels = c("less 10", "10 and more")),
+        `CIVIQ-20` = factor(cut(CIVIQ_20_0,
+                         breaks = c(0, 33, 80),
+                         labels = c("<33", "≥33")),
+                         levels = c("<33", "≥33")),
+        Compliance = factor(ifelse(Compliance == 100, "Full", "Non-full"), 
+                            levels  = c("Full", "Non-full")),
+        `CEAP class` = factor(CEAP_class_0, 
+                              levels = c("2", "3", "4")),
+        Aching_pain_0 = Aching_pain_0/10) |> 
+ select(ID, `Age, years`, Sex, Side, Compression, `Ankle circumference, cm`,
+        VCSS, `CIVIQ-20`, Compliance, `CEAP class`, Aching_pain_0, Pain_14)  -> df_1
+
+df_1 |> 
+ mutate_all(as.character, as.numeric) |> 
+ pivot_longer(cols = c(`Age, years`:Side,
+                       `Ankle circumference, cm`:`CEAP class`)) |> 
+ na.omit() |> 
+ group_by(name, value) |> 
+ nest() |> 
+ arrange(name) |> 
+ mutate(mod = map(data, model),
+        est = map(mod, avg_comparisons,  
+                  variables = list(Compression = c("2 level", "1 level")),
+                  newdata = "balanced"),
+        n = pull(count(count(data[[1]], ID)))) |> 
+ unnest(est) |> 
+ select(name, value, n, estimate, conf.low, conf.high, p.value) -> df_est
+
+center <- df_est |> 
+ ungroup(value) |> 
+ ggplot(aes(x = estimate, xmin = conf.low, xmax = conf.high, 
+            y = fct_reorder(fct_rev(value), name, .desc = T))) +
+ geom_vline(xintercept = -0.22, linetype = 2, color = "grey60") +
+ geom_point(color = "darkblue", size = 3) +
+ geom_errorbar(width = 0.5) +
+ theme_classic(base_size = 16) +
+ labs(x = "Mean difference", y = NULL) +
+ scale_x_continuous(sec.axis = sec_axis(~ ., breaks = c(-2, 2), 
+                                        labels = c("Better 1 level", "Better 2 level"))) +
+ facet_wrap(~ name, ncol = 1, strip.position = "left", scales = "free_y") +
+ theme(axis.text.y = element_blank(), axis.line.y = element_blank(), 
+       axis.ticks.y = element_blank(), strip.text = element_blank(), 
+       axis.title.x = element_text(hjust = 0.5),
+       axis.ticks.x.top = element_line(linewidth = 0),
+       axis.text.x.top = element_text(face = "bold", size = 18, hjust = c(0.5,0.5)),
+       axis.line.x.top = element_line(linewidth = 0))
+
+df_uniq <- df_est |> 
+ arrange(name, value) |> 
+ ungroup() |> 
+ distinct(name, .keep_all = T)
+
+left <- df_est |> 
+ mutate(est = paste0(round(estimate, 2), " (", 
+                     round(conf.low, 2), ", ",
+                     round(conf.high, 2), ")")) |> 
+ ggplot(aes(y = fct_reorder(fct_rev(value), name, .desc = T))) +
+ geom_text(aes(x = 1.5, label = value)) +
+ geom_text(aes(x = 2.7, label = est)) +
+ geom_text(aes(x = 2.05, label = n)) +
+ geom_text(data = df_uniq, aes(x = 0, 
+                               label = fct_reorder(name, value, .desc = T)), 
+           hjust = 0) +
+ coord_cartesian(xlim = c(0, 3)) +
+ facet_wrap(~ name, ncol = 1, strip.position = "left", scales = "free_y") +
+ scale_x_continuous(position = "top", breaks = c(0, 1.5, 2.05, 2.7), 
+                    labels = c("Variable", "Subgroup", "n", "MD (95% CI)")) +
+ labs(y = NULL, x = NULL) +
+ theme_classic(base_size = 16) +
+ theme(strip.text = element_blank(), axis.text.y = element_blank(), 
+       axis.line.y = element_blank(), axis.ticks.y = element_blank(),
+       axis.line.x = element_line(linewidth = 0), 
+       axis.ticks.x = element_line(linewidth = 0),
+       axis.text.x = element_text(face = "bold", size = 18, hjust = c(0,0.5,0.5,0.5)))
+
+
+df_pval <- df_1 |> 
+ select(`Age, years`, Sex, Side, `Ankle circumference, cm`,
+        VCSS, `CIVIQ-20`, Compliance, `CEAP class`) |> 
+ map(~lm(Pain_14 ~ Compression*Aching_pain_0*.x, data = df_1)) |> 
+ map(anova) |> 
+ map(tidy) |> 
+ map(filter, term == "Compression:Aching_pain_0:.x" ) |> 
+ map(select, c(term, p.value)) |> 
+ bind_rows(.id="term") |> 
+ rename(name = "term")
+
+df_pval <- df_pval |> 
+ left_join(df_est, by = join_by(name == name)) |> 
+ rename(p.value = "p.value.x") |> 
+ arrange(name, value) |> 
+ ungroup() |> 
+ distinct(name, .keep_all = T)
+
+rigth <- df_est |> 
+ ggplot(aes(y = fct_reorder(fct_rev(value), name, .desc = T))) +
+ geom_text(data = df_pval, aes(x = 1, label = round(p.value, 3))) +
+ facet_wrap(~ name, ncol = 1, strip.position = "left", scales = "free_y") +
+ lims(x = c(0.9, 1.1)) +
+ scale_x_continuous(position = "top", breaks = 1, 
+                    labels = "p-value") +
+ labs(y = NULL, x = NULL) +
+ theme_classic(base_size = 16) +
+ theme(strip.text = element_blank(), axis.text.y = element_blank(), 
+       axis.line.y = element_blank(), axis.ticks.y = element_blank(),
+       axis.line.x = element_line(linewidth = 0), 
+       axis.ticks.x = element_line(linewidth = 0),
+       axis.text.x = element_text(face = "bold", size = 18, hjust = 0.5))
+
+left + center + rigth + plot_layout(design = c(
+ area(t = 0, l = 0, b = 20, r = 12),
+ area(t = 0, l = 13, b = 20, r = 20), 
+ area(t = 0, l = 21, b = 20, r = 22) 
+))
+```
+MD - mean difference, CI - confidence interval. Dashed line - overall effect (MD = -0.22), p-value for interaction.
+
+\
+A subgroup analysis (Figure 3) showed that in the 45-59 age group, the pain level significantly decreased by 0.89, but the p-value for the interaction between subgroup and main group was not significant. The subgroup with non-full compliance has a small confidence interval because the small number of observations (7 patients) and participants in 1 level group (2). No difference was found in other subgroups.
+
+
